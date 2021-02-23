@@ -1,0 +1,13 @@
+server:
+  port: 8088
+  context-path: /demo
+spring:
+  datasource:
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/haineng
+    username: root
+    password: haineng
+  jpa:
+    hibernate:
+      ddl-auto: update
+      show-sql: true
