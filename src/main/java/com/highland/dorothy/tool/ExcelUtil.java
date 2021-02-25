@@ -1,13 +1,6 @@
 package com.highland.dorothy.tool;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -25,6 +18,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.poi.EncryptedDocumentException;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRichTextString;
 import org.apache.poi.hssf.usermodel.HSSFRow;
@@ -32,6 +26,8 @@ import org.apache.poi.hssf.usermodel.HSSFSheet;
 //import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellAddress;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
@@ -233,7 +229,22 @@ public class ExcelUtil {
      */
     public static List<List<Object>> readExcel(String filePath, String sheetName) throws IOException {
         File file = new File(filePath);
-        return readExcel(file, sheetName);
+        return padding(readExcel(file, sheetName));
+    }
+    //末尾部分为空的处理,填充一致
+    private static List<List<Object>> padding(List<List<Object>> l){
+        if (l.size() == 0) return l;
+        int index = 0;
+        while (l.get(index).size() == 0) index++;
+        int rowSize = l.get(0).size();
+        l.stream().forEach(r->{
+            int i = rowSize - r.size();
+            while(i > 0){
+                i--;
+                r.add("");
+            }
+        });
+        return l;
     }
 
     /**
@@ -375,6 +386,19 @@ public class ExcelUtil {
      */
     public static List<List<Object>> getSheetData(Workbook wb, Sheet sheet) {
         List<List<Object>> list = new ArrayList<List<Object>>();
+        int sheetmergeCount = sheet.getNumMergedRegions();
+        for (int i = 0; i < sheetmergeCount; i++) {
+            CellRangeAddress range = sheet.getMergedRegion(i);
+            int firstColumn = range.getFirstColumn();
+            int lastColumn = range.getLastColumn();
+            int firstRow = range.getFirstRow();
+            int lastRow = range.getLastRow();
+            String s = sheet.getRow(firstRow).getCell(firstColumn).toString();
+            for (int r = firstRow ; r <= lastRow;r++)
+                for (int c = firstColumn ; c <= lastColumn ; c++){
+                    sheet.getRow(r).getCell(c).setCellValue(s);
+                }
+        }
         Iterator<Row> rowIterator = sheet.rowIterator();
         while (rowIterator.hasNext()) {
             Row row = rowIterator.next();
@@ -385,6 +409,8 @@ public class ExcelUtil {
             List<Object> rowData = getRowData(wb, row);
             list.add(rowData);
         }
+
+
         return list;
     }
 
@@ -743,7 +769,65 @@ public class ExcelUtil {
             mLogger.error(e.toString(), e);
         }
     }
+    //根据单元格编号更改excel
+    public static void writeCell(String path ,String sheetName, String coordinate, String value) {
+        //根据路径获取文件
+        File file = new File(path);
+        //定义输入流对象
+        FileInputStream excelFileInputStream;
+        try {
+            excelFileInputStream = new FileInputStream(file);
+            // 拿到文件转化为JavaPoi可操纵类型
+            Workbook workbook = WorkbookFactory.create(excelFileInputStream);
+            excelFileInputStream.close();
+            Sheet sheet = workbook.getSheet(sheetName);
+            //获取单元格的row和cell
+            CellAddress address = new CellAddress(coordinate);
+            // 获取行
+            Row row = sheet.getRow(address.getRow());
+            // 获取列
+            Cell cell = row.getCell(address.getColumn());
+            //设置单元的值
+            cell.setCellValue(value);
+            //写入数据
+            FileOutputStream excelFileOutPutStream = new FileOutputStream(file);
+            workbook.write(excelFileOutPutStream);
+            excelFileOutPutStream.flush();
+            excelFileOutPutStream.close();
+            System.out.println("指定单元格设置数据写入完成");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (EncryptedDocumentException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
+    //根据行数和列数更改excel
+    public static void writeCell(String path,String sheetName, int r, int c, String value) throws IOException {
+        //根据路径获取文件
+        File file = new File(path);
+        //定义输入流对象
+        FileInputStream excelFileInputStream;
+        excelFileInputStream = new FileInputStream(file);
+        // 拿到文件转化为JavaPoi可操纵类型
+        Workbook workbook = WorkbookFactory.create(excelFileInputStream);
+        excelFileInputStream.close();
+        Sheet sheet = workbook.getSheet(sheetName);
+        // 获取行
+        Row row = sheet.getRow(r);
+        // 获取列
+        Cell cell = row.getCell(c);
+        //设置单元的值
+        cell.setCellValue(value);
+        //写入数据
+        FileOutputStream excelFileOutPutStream = new FileOutputStream(file);
+        workbook.write(excelFileOutPutStream);
+        excelFileOutPutStream.flush();
+        excelFileOutPutStream.close();
+        System.out.println("指定单元格设置数据写入完成");
+    }
     /**
      * 每个sheet的写入
      * @param sheet   页签
