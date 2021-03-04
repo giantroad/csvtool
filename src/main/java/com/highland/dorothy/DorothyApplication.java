@@ -18,9 +18,46 @@ import java.util.stream.Collectors;
 public class DorothyApplication {
 
 	public static void main(String[] args) throws IOException {
-		personIncharge();
+		temp();
+		//personIncharge();
 	}
-
+	public static void temp() throws IOException {
+		List<List<Object>> list = new ArrayList();
+		String file = "C:\\Users\\Administrator\\Desktop\\零售电量.xlsx";
+		list = ExcelUtil.readExcel(file,"sheet1");
+		//判断信息区域
+		list = list.stream().filter(a->a.size()==8).collect(Collectors.toList());
+		List<List<Object>> res = new ArrayList<>();
+		int i = 0;
+		int j = 1;
+		while (i < list.size()){
+			if (!(list.get(i).get(0).toString().equals("交易品种名称")&&list.get(i).get(3).toString().equals("输配电价执行方式 (仅水电消纳示范交 易品种）"))){
+				s("Wrong!!!!!!!");
+				break;
+			}
+			for (int month = i+9 ;  month <= i+20 ; month++){
+				List<Object> temp = new ArrayList();
+				temp.add(j);
+				j++;
+				temp.add(list.get(i+1).get(2));
+				temp.add(list.get(month).get(0));
+				temp.add(list.get(i).get(1));
+				temp.add(list.get(month).get(1));
+				temp.add(list.get(month).get(3));
+				temp.add(list.get(month).get(5));
+				temp.add(list.get(month).get(6));
+				res.add(temp);
+			}
+			i+=22;
+		}
+		String[] strs2 = {"序号","用户名","月份","交易品种","交易总电量","交易电量","交易电价","浮动交易电价 (仅水电电量部分）"};
+		Workbook workbook = ExcelUtil.getWorkbook(file);
+		ExcelUtil.write2Sheet(workbook.createSheet("2月"),strs2,res,"YYYY/MM/DD");
+		OutputStream out = new FileOutputStream(new File(file));
+		workbook.write(out);
+		out.close();
+		s("stop");
+	}
 	public static void personIncharge() throws IOException {
 		List<List<Object>> companyInfo = new ArrayList();
 		List<List<Object>> companyNoInfo = new ArrayList();
@@ -128,7 +165,6 @@ public class DorothyApplication {
 		OutputStream out = new FileOutputStream(new File(personInformationFilePath));
 		workbook.write(out);
 		out.close();
-		System.out.println(companyInfo.stream());
 	}
 
 	public static void s(Object o){
